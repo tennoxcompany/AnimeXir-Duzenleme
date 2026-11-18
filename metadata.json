@@ -1,0 +1,6 @@
+{
+  "name": "AnimeXir",
+  "description": "AnimeXir ile Türkçe altyazılı ve dublajlı animeleri keşfet. Güncel anime bölümlerini takip et, haftalık takvimi incele ve arkadaşlarınla birlikte izleme odalarında buluş.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

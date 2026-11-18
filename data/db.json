@@ -1,0 +1,470 @@
+{
+  "animes": [
+    {
+      "id": "jujutsu-kaisen-113415",
+      "anilistId": 113415,
+      "slug": "jujutsu-kaisen-113415",
+      "title": "JUJUTSU KAISEN",
+      "stylizedTitle": "JUJUTSU KAISEN",
+      "score": 8.4,
+      "year": 2020,
+      "episodeCount": 24,
+      "latestEpisode": 24,
+      "hasDub": false,
+      "featured": true,
+      "genres": [
+        "Aksiyon",
+        "Dram",
+        "Doğaüstü",
+        "Okul"
+      ],
+      "moods": [
+        "Aksiyon",
+        "Dram"
+      ],
+      "awardTag": "Ödüllü",
+      "synopsis": "A boy fights... for \"the right death.\"\n\n\n\nHardship, regret, shame: the negative feelings that humans feel become Curses that lurk in our everyday lives. The Curses run rampant throughout the world, capable of leading people to terrible misfortune and even death. What's more, the Curses can only be exorcised by another Curse.\n\n\n\nItadori Yuji is a boy with tremendous physical strength, though he lives a completely ordinary high school life. One day, to save a friend who has been attacked by Curses, he eats the finger of the Double-Faced Specter, taking the Curse into his own soul. From then on, he shares one body with the Double-Faced Specter. Guided by the most powerful of sorcerers, Gojou Satoru, Itadori is admitted to the Tokyo Metropolitan Technical High School of Sorcery, an organization that fights the Curses... and thus begins the heroic tale of a boy who became a Curse to exorcise a Curse, a life from which he could never turn back.\n\n\n\n(Source: Crunchyroll)\n\n\n\nNote: The first episode received an early web premiere on September 19th, 2020. The regular TV broadcast started on October 3rd, 2020.",
+      "posterUrl": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-LHBAeoZDIsnF.jpg",
+      "bannerUrl": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg",
+      "trailerId": "RIyb52EMx8c",
+      "broadcastDay": "Cumartesi",
+      "broadcastTime": "20:00",
+      "studio": "MAPPA",
+      "status": "Tamamlandı",
+      "episodes": [
+        {
+          "id": "jujutsu-kaisen-113415-ep-1",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 1,
+          "title": "1. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-2",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 2,
+          "title": "2. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-3",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 3,
+          "title": "3. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-4",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 4,
+          "title": "4. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-5",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 5,
+          "title": "5. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-6",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 6,
+          "title": "6. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-7",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 7,
+          "title": "7. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-8",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 8,
+          "title": "8. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-9",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 9,
+          "title": "9. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-10",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 10,
+          "title": "10. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-11",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 11,
+          "title": "11. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-12",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 12,
+          "title": "12. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-13",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 13,
+          "title": "13. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-14",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 14,
+          "title": "14. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-15",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 15,
+          "title": "15. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-16",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 16,
+          "title": "16. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-17",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 17,
+          "title": "17. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-18",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 18,
+          "title": "18. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-19",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 19,
+          "title": "19. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-20",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 20,
+          "title": "20. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-21",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 21,
+          "title": "21. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-22",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 22,
+          "title": "22. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-23",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 23,
+          "title": "23. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Katalogda",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        },
+        {
+          "id": "jujutsu-kaisen-113415-ep-24",
+          "animeId": "jujutsu-kaisen-113415",
+          "number": 24,
+          "title": "24. Bölüm",
+          "duration": "24:00",
+          "durationSeconds": 1440,
+          "hasDub": false,
+          "hasSub": true,
+          "releasedAt": "Yeni",
+          "thumbnail": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/113415-jQBSkxWAAk83.jpg"
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "wanderer",
+      "displayName": "wanderer",
+      "handle": "@wanderer",
+      "email": "kagangirgin43@gmail.com",
+      "isAdmin": true,
+      "avatarUrl": "https://s4.anilist.co/file/anilistcdn/character/large/b40-MNypXsxSRb1R.png",
+      "bannerUrl": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21-wf37VakJmZqs.jpg",
+      "accentColor": "amber",
+      "roleBadge": "Yönetici",
+      "badges": [
+        {
+          "id": "role-2",
+          "label": "Yönetici",
+          "type": "role"
+        },
+        {
+          "id": "early-3",
+          "label": "Erken Destekçi",
+          "type": "early"
+        }
+      ],
+      "bio": "AnimeXir yönetici hesabı · AniList katalog & Türkçe altyazı kontrolü.",
+      "watchedEpisodes": 980,
+      "favoriteAnimeIds": [],
+      "watchlistIds": [],
+      "friendsCount": 0,
+      "isPremium": true,
+      "profileComments": [],
+      "passwordHash": "fcad6d38f53871e1a3423a4c2a2c1c21b2bc4f910546de8a090d0d593d166917",
+      "privacyAcceptedAt": "2026-01-01T00:00:00.000Z",
+      "onboardingCompleted": true,
+      "favoriteGenres": [
+        "Aksiyon",
+        "Gizem",
+        "Fantezi"
+      ],
+      "topAnimePicks": []
+    }
+  ],
+  "sessions": {
+    "2f1f31a7d44ea52e00d577a13cdab27d1e6ceda3a457e545": "wanderer",
+    "96151e34a626cfb4f07ee2816e01f816f5f24637ffc23376": "wanderer",
+    "218c333f33636ecede8249b098e8d29d9296e02aecad5ade": "wanderer",
+    "501135e7094b0075ec9c160d415d8aa9aa1022e9fd00fe0c": "wanderer",
+    "78be2da925136b4cf7fc59bb9745f9233f4b1298ef40e522": "wanderer",
+    "6772656c54c7ad890e76cec362316477d0f1849568f8a739": "wanderer",
+    "6d38b47e42363704be31123a76e4918326484edf11ecac28": "user-1795014294127",
+    "e9131d08fe78aa2b517b28522728c43f857c831c5f12e4c5": "wanderer",
+    "ea007467d3a5d981cb8fda79bab49815fada7b1560ea86eb": "wanderer",
+    "b20b7b3ca0ca1b2a5412e1a6e2ccfec4b82cbda474a33fbc": "wanderer",
+    "126e3c3ff28ea00a424532edf28deafa309e5d2dda6c6c74": "wanderer",
+    "cac46a4e3ec1b24179b0babffdaf283d3121dcf6954deba5": "wanderer"
+  },
+  "comments": [
+    {
+      "id": "ec-1795014315725",
+      "animeId": "jujutsu-kaisen-113415",
+      "episodeNumber": 1,
+      "userId": "wanderer",
+      "displayName": "wanderer",
+      "handle": "@wanderer",
+      "avatarUrl": "https://s4.anilist.co/file/anilistcdn/character/large/b40-MNypXsxSRb1R.png",
+      "text": "Harika",
+      "rating": 9,
+      "likes": 1,
+      "createdAt": "şimdi",
+      "likedByMe": true
+    }
+  ],
+  "tickerItems": [
+    {
+      "id": "tick-1795014315725",
+      "userId": "wanderer",
+      "username": "wanderer",
+      "avatarUrl": "https://s4.anilist.co/file/anilistcdn/character/large/b40-MNypXsxSRb1R.png",
+      "animeId": "jujutsu-kaisen-113415",
+      "animeTitle": "JUJUTSU KAISEN",
+      "episodeNumber": 1,
+      "scoreLabel": "9/10",
+      "comment": "Harika"
+    }
+  ],
+  "rooms": [],
+  "watchProgress": {},
+  "watchlists": {},
+  "favorites": {},
+  "ratings": {},
+  "friends": {},
+  "profileLikes": {
+    "user-1795014294127": []
+  },
+  "premiumPlans": [
+    {
+      "id": "xir-standart",
+      "name": "Xir Standart",
+      "tagline": "Reklamsız ve akıcı anime keyfi",
+      "price": 20,
+      "periodLabel": "ay",
+      "durationDays": 30,
+      "popular": false,
+      "badgeLabel": "Başlangıç",
+      "features": [
+        "Sıfır reklamlı Full HD (1080p) oynatıcı",
+        "Profilinde Standart destekçi rozeti",
+        "Yeni bölüm bildirimlerinde öncelik"
+      ]
+    },
+    {
+      "id": "xir-pro",
+      "name": "Xir Pro",
+      "tagline": "En popüler yüksek kalite paketi",
+      "price": 45,
+      "periodLabel": "ay",
+      "durationDays": 30,
+      "popular": true,
+      "badgeLabel": "En Popüler",
+      "features": [
+        "4K Ultra HD & Yüksek Bitrate video akışı",
+        "Sınırsız Birlikte İzle odası açma",
+        "Altın Premium rozeti & özel profil vurgusu",
+        "Bölüm yorumlarında öne çıkan isim rengi"
+      ]
+    },
+    {
+      "id": "xir-yillik",
+      "name": "Xir Yıllık Pro",
+      "tagline": "12 ay kesintisiz · 4 ay bedava",
+      "price": 360,
+      "periodLabel": "yıl",
+      "durationDays": 365,
+      "popular": false,
+      "badgeLabel": "Avantajlı",
+      "features": [
+        "Tüm Xir Pro ayrıcalıkları 1 yıl boyunca",
+        "Aylık ₺30’a denk gelen yıllık indirim",
+        "Çekilişlerde ekstra destekçi önceliği"
+      ]
+    }
+  ],
+  "giveaway": null,
+  "premiumOrders": [],
+  "directMessages": []
+}
