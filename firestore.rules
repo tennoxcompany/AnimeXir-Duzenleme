@@ -1,0 +1,476 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email is string && request.auth.token.email.lower() == 'kagangirgin43@gmail.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidPublicProfile(data) {
+      return data.keys().hasAll([
+        'id', 'displayName', 'handle', 'avatarUrl', 'bannerUrl', 'accentColor', 'isAdmin'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'displayName', 'handle', 'avatarUrl', 'bannerUrl', 'accentColor',
+        'isAdmin', 'roleBadge', 'badges', 'bio', 'watchedEpisodes',
+        'favoriteAnimeIds', 'watchlistIds', 'friendsCount', 'isPremium',
+        'premiumPlanName', 'privacyAcceptedAt', 'onboardingCompleted',
+        'favoriteGenres', 'topAnimePicks', 'updatedAt'
+      ]) &&
+      isValidId(data.id) &&
+      data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 64 &&
+      data.handle is string && data.handle.size() >= 2 && data.handle.size() <= 40 &&
+      data.avatarUrl is string && data.avatarUrl.size() <= 1000 &&
+      data.bannerUrl is string && data.bannerUrl.size() <= 1000 &&
+      data.accentColor in ['crimson', 'sky', 'violet', 'emerald', 'amber'] &&
+      data.isAdmin is bool &&
+      (!('roleBadge' in data) || data.roleBadge == null || (data.roleBadge is string && data.roleBadge.size() <= 32)) &&
+      (!('badges' in data) || (data.badges is list && data.badges.size() <= 20)) &&
+      (!('bio' in data) || (data.bio is string && data.bio.size() <= 400)) &&
+      (!('watchedEpisodes' in data) || (data.watchedEpisodes is number && data.watchedEpisodes >= 0)) &&
+      (!('favoriteAnimeIds' in data) || (data.favoriteAnimeIds is list && data.favoriteAnimeIds.size() <= 200)) &&
+      (!('watchlistIds' in data) || (data.watchlistIds is list && data.watchlistIds.size() <= 200)) &&
+      (!('friendsCount' in data) || (data.friendsCount is number && data.friendsCount >= 0)) &&
+      (!('isPremium' in data) || data.isPremium is bool) &&
+      (!('premiumPlanName' in data) || data.premiumPlanName == null || (data.premiumPlanName is string && data.premiumPlanName.size() <= 64)) &&
+      (!('privacyAcceptedAt' in data) || (data.privacyAcceptedAt is string && data.privacyAcceptedAt.size() <= 64)) &&
+      (!('onboardingCompleted' in data) || data.onboardingCompleted is bool) &&
+      (!('favoriteGenres' in data) || (data.favoriteGenres is list && data.favoriteGenres.size() <= 12)) &&
+      (!('topAnimePicks' in data) || (data.topAnimePicks is list && data.topAnimePicks.size() <= 3)) &&
+      (!('updatedAt' in data) || data.updatedAt is string || data.updatedAt is timestamp);
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+      data.keys().hasOnly([
+        'uid', 'email', 'watchlistIds', 'favoriteIds', 'friendsIds',
+        'ratings', 'watchProgressMap', 'updatedAt'
+      ]) &&
+      isValidId(data.uid) &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+      (!('watchlistIds' in data) || (data.watchlistIds is list && data.watchlistIds.size() <= 300)) &&
+      (!('favoriteIds' in data) || (data.favoriteIds is list && data.favoriteIds.size() <= 300)) &&
+      (!('friendsIds' in data) || (data.friendsIds is list && data.friendsIds.size() <= 500)) &&
+      (!('ratings' in data) || data.ratings is map) &&
+      (!('watchProgressMap' in data) || data.watchProgressMap is map) &&
+      (!('updatedAt' in data) || data.updatedAt is string || data.updatedAt is timestamp);
+    }
+
+    function isValidProfileLike(data) {
+      return data.keys().hasAll(['targetUserId', 'userId', 'createdAt']) &&
+      data.keys().hasOnly(['targetUserId', 'userId', 'createdAt']) &&
+      isValidId(data.targetUserId) &&
+      isValidId(data.userId) &&
+      data.userId == request.auth.uid &&
+      data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidWallComment(data) {
+      return data.keys().hasAll(['id', 'targetUserId', 'authorId', 'authorName', 'authorHandle', 'text', 'createdAtMs']) &&
+      data.keys().hasOnly(['id', 'targetUserId', 'authorId', 'authorName', 'authorHandle', 'authorAvatar', 'text', 'createdAt', 'createdAtMs']) &&
+      isValidId(data.id) &&
+      isValidId(data.targetUserId) &&
+      data.authorId == request.auth.uid &&
+      data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 64 &&
+      data.authorHandle is string && data.authorHandle.size() >= 2 && data.authorHandle.size() <= 40 &&
+      (!('authorAvatar' in data) || (data.authorAvatar is string && data.authorAvatar.size() <= 1000)) &&
+      data.text is string && data.text.size() >= 1 && data.text.size() <= 500 &&
+      (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+      data.createdAtMs is number;
+    }
+
+    function isValidAnime(data) {
+      return data.keys().hasAll(['id', 'slug', 'title', 'posterUrl', 'bannerUrl', 'episodes']) &&
+      data.keys().hasOnly([
+        'id', 'anilistId', 'slug', 'title', 'stylizedTitle', 'synopsis',
+        'posterUrl', 'bannerUrl', 'logoUrl', 'trailerId', 'score', 'year',
+        'studio', 'status', 'hasDub', 'featured', 'episodeCount',
+        'latestEpisode', 'genres', 'moods', 'awardTag', 'weeklyRank',
+        'weeklyViews', 'broadcastDay', 'broadcastTime', 'episodes'
+      ]) &&
+      isValidId(data.id) &&
+      data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 160 &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+      data.posterUrl is string && data.posterUrl.size() <= 1000 &&
+      data.bannerUrl is string && data.bannerUrl.size() <= 1000 &&
+      data.episodes is list && data.episodes.size() <= 2000 &&
+      (!('synopsis' in data) || (data.synopsis is string && data.synopsis.size() <= 4000)) &&
+      (!('stylizedTitle' in data) || data.stylizedTitle == null || (data.stylizedTitle is string && data.stylizedTitle.size() <= 200)) &&
+      (!('logoUrl' in data) || data.logoUrl == null || (data.logoUrl is string && data.logoUrl.size() <= 1000)) &&
+      (!('trailerId' in data) || data.trailerId == null || (data.trailerId is string && data.trailerId.size() <= 100)) &&
+      (!('studio' in data) || (data.studio is string && data.studio.size() <= 120)) &&
+      (!('status' in data) || (data.status is string && data.status.size() <= 32)) &&
+      (!('awardTag' in data) || data.awardTag == null || (data.awardTag is string && data.awardTag.size() <= 64)) &&
+      (!('weeklyViews' in data) || data.weeklyViews == null || (data.weeklyViews is string && data.weeklyViews.size() <= 40)) &&
+      (!('broadcastDay' in data) || data.broadcastDay == null || (data.broadcastDay is string && data.broadcastDay.size() <= 32)) &&
+      (!('broadcastTime' in data) || data.broadcastTime == null || (data.broadcastTime is string && data.broadcastTime.size() <= 16)) &&
+      (!('genres' in data) || (data.genres is list && data.genres.size() <= 30)) &&
+      (!('moods' in data) || (data.moods is list && data.moods.size() <= 30));
+    }
+
+    function isValidEpisodeComment(data) {
+      return data.keys().hasAll(['id', 'animeId', 'episodeNumber', 'userId', 'displayName', 'handle', 'text', 'likes', 'createdAtMs']) &&
+      data.keys().hasOnly([
+        'id', 'animeId', 'episodeNumber', 'userId', 'displayName',
+        'handle', 'avatarUrl', 'text', 'rating', 'likes',
+        'likedBy', 'createdAt', 'createdAtMs'
+      ]) &&
+      isValidId(data.id) &&
+      isValidId(data.animeId) &&
+      data.episodeNumber is number && data.episodeNumber >= 1 &&
+      isValidId(data.userId) &&
+      data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 64 &&
+      data.handle is string && data.handle.size() >= 2 && data.handle.size() <= 40 &&
+      (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 1000)) &&
+      data.text is string && data.text.size() >= 1 && data.text.size() <= 1000 &&
+      (!('rating' in data) || data.rating == null || (data.rating is number && data.rating >= 1 && data.rating <= 10)) &&
+      data.likes is number && data.likes >= 0 &&
+      (!('likedBy' in data) || (data.likedBy is list && data.likedBy.size() <= 5000)) &&
+      (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+      data.createdAtMs is number;
+    }
+
+    function isValidDirectMessage(data) {
+      return data.keys().hasAll([
+        'id', 'conversationKey', 'participants', 'senderId', 'receiverId', 'text', 'createdAtMs', 'readByReceiver'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'conversationKey', 'participants', 'senderId', 'receiverId',
+        'text', 'createdAt', 'createdAtMs', 'readByReceiver'
+      ]) &&
+      isValidId(data.id) &&
+      data.conversationKey is string && data.conversationKey.size() >= 3 && data.conversationKey.size() <= 260 &&
+      data.participants is list && data.participants.size() == 2 &&
+      isValidId(data.senderId) && isValidId(data.receiverId) &&
+      data.senderId != data.receiverId &&
+      data.text is string && data.text.size() >= 1 && data.text.size() <= 1000 &&
+      (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+      data.createdAtMs is number &&
+      data.readByReceiver is bool;
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['code', 'name', 'animeId', 'episodeNumber', 'hostId', 'hostName']) &&
+      data.keys().hasOnly([
+        'code', 'name', 'animeId', 'episodeNumber', 'hostId', 'hostName',
+        'hostAvatar', 'viewerCount', 'isPlaying', 'currentTime', 'messages', 'createdAt'
+      ]) &&
+      isValidId(data.code) &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+      isValidId(data.animeId) &&
+      data.episodeNumber is number && data.episodeNumber >= 1 &&
+      isValidId(data.hostId) &&
+      data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 64 &&
+      (!('hostAvatar' in data) || (data.hostAvatar is string && data.hostAvatar.size() <= 1000)) &&
+      (!('viewerCount' in data) || (data.viewerCount is number && data.viewerCount >= 0)) &&
+      (!('isPlaying' in data) || data.isPlaying is bool) &&
+      (!('currentTime' in data) || (data.currentTime is number && data.currentTime >= 0)) &&
+      (!('messages' in data) || (data.messages is list && data.messages.size() <= 200)) &&
+      (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64));
+    }
+
+    function isValidPremiumPlan(data) {
+      return data.keys().hasAll(['id', 'name', 'tagline', 'price', 'periodLabel', 'durationDays', 'features']) &&
+      data.keys().hasOnly(['id', 'name', 'tagline', 'price', 'periodLabel', 'durationDays', 'popular', 'badgeLabel', 'features']) &&
+      isValidId(data.id) &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 64 &&
+      data.tagline is string && data.tagline.size() <= 160 &&
+      data.price is number && data.price >= 0 &&
+      data.periodLabel is string && data.periodLabel.size() >= 1 && data.periodLabel.size() <= 32 &&
+      data.durationDays is number && data.durationDays >= 1 &&
+      (!('popular' in data) || data.popular is bool) &&
+      (!('badgeLabel' in data) || data.badgeLabel == null || (data.badgeLabel is string && data.badgeLabel.size() <= 40)) &&
+      data.features is list && data.features.size() <= 20;
+    }
+
+    function isValidGiveaway(data) {
+      return data.keys().hasAll(['id', 'title', 'prizeLabel', 'durationHours', 'startedAt', 'endsAt', 'active', 'participantIds']) &&
+      data.keys().hasOnly([
+        'id', 'title', 'prizeLabel', 'durationHours', 'startedAt', 'endsAt',
+        'active', 'participantIds', 'winnerId', 'winnerName', 'winnerHandle'
+      ]) &&
+      isValidId(data.id) &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+      data.prizeLabel is string && data.prizeLabel.size() >= 1 && data.prizeLabel.size() <= 80 &&
+      data.durationHours is number && data.durationHours >= 1 &&
+      data.startedAt is string && data.startedAt.size() <= 64 &&
+      data.endsAt is string && data.endsAt.size() <= 64 &&
+      data.active is bool &&
+      data.participantIds is list && data.participantIds.size() <= 5000 &&
+      (!('winnerId' in data) || data.winnerId == null || isValidId(data.winnerId)) &&
+      (!('winnerName' in data) || data.winnerName == null || (data.winnerName is string && data.winnerName.size() <= 64)) &&
+      (!('winnerHandle' in data) || data.winnerHandle == null || (data.winnerHandle is string && data.winnerHandle.size() <= 40));
+    }
+
+    function isValidPremiumOrder(data) {
+      return data.keys().hasAll(['id', 'userId', 'planId', 'planName', 'price', 'status', 'createdAtMs']) &&
+      data.keys().hasOnly([
+        'id', 'userId', 'userDisplayName', 'userHandle', 'planId',
+        'planName', 'price', 'periodLabel', 'note', 'status', 'createdAt', 'createdAtMs'
+      ]) &&
+      isValidId(data.id) &&
+      isValidId(data.userId) &&
+      (!('userDisplayName' in data) || (data.userDisplayName is string && data.userDisplayName.size() <= 64)) &&
+      (!('userHandle' in data) || (data.userHandle is string && data.userHandle.size() <= 40)) &&
+      isValidId(data.planId) &&
+      data.planName is string && data.planName.size() >= 1 && data.planName.size() <= 64 &&
+      data.price is number && data.price >= 0 &&
+      (!('periodLabel' in data) || (data.periodLabel is string && data.periodLabel.size() <= 32)) &&
+      (!('note' in data) || data.note == null || (data.note is string && data.note.size() <= 300)) &&
+      data.status in ['pending', 'approved', 'rejected'] &&
+      (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+      data.createdAtMs is number;
+    }
+
+    function isValidTickerItem(data) {
+      return data.keys().hasAll(['id', 'userId', 'username', 'animeId', 'animeTitle', 'comment', 'createdAtMs']) &&
+      data.keys().hasOnly([
+        'id', 'userId', 'username', 'avatarUrl', 'animeId', 'animeTitle',
+        'episodeNumber', 'scoreLabel', 'comment', 'createdAtMs'
+      ]) &&
+      isValidId(data.id) &&
+      isValidId(data.userId) &&
+      data.username is string && data.username.size() >= 1 && data.username.size() <= 64 &&
+      (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 1000)) &&
+      isValidId(data.animeId) &&
+      data.animeTitle is string && data.animeTitle.size() >= 1 && data.animeTitle.size() <= 160 &&
+      (!('episodeNumber' in data) || data.episodeNumber == null || data.episodeNumber is number) &&
+      (!('scoreLabel' in data) || data.scoreLabel == null || (data.scoreLabel is string && data.scoreLabel.size() <= 32)) &&
+      data.comment is string && data.comment.size() >= 1 && data.comment.size() <= 300 &&
+      data.createdAtMs is number;
+    }
+
+    // Connection check doc
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Admin registry (read-only lookup for verified admins)
+    match /admins/{adminUid} {
+      allow get: if isAdmin();
+      allow write: if false;
+    }
+
+    // Public profiles (zero PII)
+    match /publicProfiles/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if true;
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidPublicProfile(incoming()) &&
+        incoming().id == userId &&
+        incoming().isAdmin == isAdmin() &&
+        (!('isPremium' in incoming()) || incoming().isPremium == false || isAdmin()) &&
+        (!('roleBadge' in incoming()) || incoming().roleBadge == null || isAdmin()) &&
+        (!('badges' in incoming()) || incoming().badges.size() <= 1 || isAdmin());
+      allow update: if isValidId(userId) &&
+        isValidPublicProfile(incoming()) &&
+        incoming().id == existing().id && (
+          isAdmin() || (
+            isOwner(userId) &&
+            incoming().isAdmin == existing().isAdmin &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'handle', 'avatarUrl', 'bannerUrl', 'accentColor',
+              'bio', 'watchedEpisodes', 'favoriteAnimeIds', 'watchlistIds',
+              'friendsCount', 'privacyAcceptedAt', 'onboardingCompleted',
+              'favoriteGenres', 'topAnimePicks', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Private PII & personal watchlists/progress
+    match /userPrivate/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserPrivate(incoming()) &&
+        incoming().uid == userId &&
+        incoming().email == request.auth.token.email;
+      allow update: if isValidId(userId) &&
+        (isOwner(userId) || isAdmin()) &&
+        isValidUserPrivate(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().email == existing().email &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'watchlistIds', 'favoriteIds', 'friendsIds', 'ratings', 'watchProgressMap', 'updatedAt'
+        ]);
+    }
+
+    // Atomic profile likes
+    match /profileLikes/{likeId} {
+      allow get: if isValidId(likeId);
+      allow list: if true;
+      allow create: if isValidId(likeId) &&
+        isSignedIn() &&
+        isValidProfileLike(incoming()) &&
+        likeId == incoming().targetUserId + '_' + request.auth.uid;
+      allow delete: if isValidId(likeId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Profile wall comments
+    match /wallComments/{commentId} {
+      allow get: if isValidId(commentId);
+      allow list: if true;
+      allow create: if isValidId(commentId) &&
+        isSignedIn() &&
+        isValidWallComment(incoming()) &&
+        incoming().id == commentId;
+      allow delete: if isValidId(commentId) && (isAdmin() || (isSignedIn() && existing().authorId == request.auth.uid));
+    }
+
+    // Anime catalog (public read, admin-only write)
+    match /animes/{animeId} {
+      allow get: if isValidId(animeId);
+      allow list: if true;
+      allow create, update: if isValidId(animeId) && isAdmin() && isValidAnime(incoming()) && incoming().id == animeId;
+      allow delete: if isValidId(animeId) && isAdmin();
+    }
+
+    // Episode comments
+    match /comments/{commentId} {
+      allow get: if isValidId(commentId);
+      allow list: if true;
+      allow create: if isValidId(commentId) &&
+        isSignedIn() &&
+        isValidEpisodeComment(incoming()) &&
+        incoming().id == commentId &&
+        incoming().userId == request.auth.uid &&
+        incoming().likes == 0;
+      allow update: if isValidId(commentId) &&
+        isSignedIn() &&
+        isValidEpisodeComment(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().userId == existing().userId && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'likedBy'])
+        );
+      allow delete: if isValidId(commentId) && (isAdmin() || (isSignedIn() && existing().userId == request.auth.uid));
+    }
+
+    // Private 1:1 Direct Messages
+    match /directMessages/{msgId} {
+      allow get: if isValidId(msgId) && isSignedIn() && request.auth.uid in existing().participants;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isValidId(msgId) &&
+        isSignedIn() &&
+        isValidDirectMessage(incoming()) &&
+        incoming().id == msgId &&
+        incoming().senderId == request.auth.uid &&
+        request.auth.uid in incoming().participants &&
+        incoming().receiverId in incoming().participants &&
+        incoming().readByReceiver == false;
+      allow update: if isValidId(msgId) &&
+        isSignedIn() &&
+        isValidDirectMessage(incoming()) &&
+        existing().receiverId == request.auth.uid &&
+        incoming().senderId == existing().senderId &&
+        incoming().receiverId == existing().receiverId &&
+        incoming().text == existing().text &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['readByReceiver']);
+      allow delete: if isValidId(msgId) && isAdmin();
+    }
+
+    // Watch party rooms
+    match /rooms/{roomCode} {
+      allow get: if isValidId(roomCode);
+      allow list: if true;
+      allow create: if isValidId(roomCode) &&
+        isSignedIn() &&
+        isValidRoom(incoming()) &&
+        incoming().code == roomCode &&
+        incoming().hostId == request.auth.uid;
+      allow update: if isValidId(roomCode) &&
+        isSignedIn() &&
+        isValidRoom(incoming()) &&
+        incoming().code == existing().code &&
+        incoming().hostId == existing().hostId && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['messages', 'isPlaying', 'currentTime', 'viewerCount'])
+        );
+      allow delete: if isValidId(roomCode) && (isAdmin() || (isSignedIn() && existing().hostId == request.auth.uid));
+    }
+
+    // Premium plans
+    match /premiumPlans/{planId} {
+      allow get: if isValidId(planId);
+      allow list: if true;
+      allow create, update: if isValidId(planId) && isAdmin() && isValidPremiumPlan(incoming()) && incoming().id == planId;
+      allow delete: if isValidId(planId) && isAdmin();
+    }
+
+    // Giveaways
+    match /giveaways/{giveawayId} {
+      allow get: if isValidId(giveawayId);
+      allow list: if true;
+      allow create: if isValidId(giveawayId) && isAdmin() && isValidGiveaway(incoming());
+      allow update: if isValidId(giveawayId) &&
+        isValidGiveaway(incoming()) && (
+          isAdmin() || (
+            isSignedIn() &&
+            existing().active == true &&
+            incoming().participantIds.hasAll(existing().participantIds) &&
+            incoming().participantIds.size() <= existing().participantIds.size() + 1 &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['participantIds'])
+          )
+        );
+      allow delete: if isValidId(giveawayId) && isAdmin();
+    }
+
+    // Premium orders (strictly owner or admin)
+    match /premiumOrders/{orderId} {
+      allow get: if isValidId(orderId) && (isAdmin() || (isSignedIn() && existing().userId == request.auth.uid));
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isValidId(orderId) &&
+        isSignedIn() &&
+        isValidPremiumOrder(incoming()) &&
+        incoming().id == orderId &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'pending';
+      allow update: if isValidId(orderId) &&
+        isAdmin() &&
+        isValidPremiumOrder(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().userId == existing().userId &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    // Live activity ticker
+    match /tickerItems/{itemId} {
+      allow get: if isValidId(itemId);
+      allow list: if true;
+      allow create: if isValidId(itemId) && isSignedIn() && isValidTickerItem(incoming()) && incoming().id == itemId;
+      allow delete: if isValidId(itemId) && isAdmin();
+    }
+  }
+}

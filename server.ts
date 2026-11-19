@@ -57,15 +57,37 @@ const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 const ADMIN_EMAIL = 'kagangirgin43@gmail.com';
 
-function hashPassword(pw: string): string {
-  const salt = 'animexir_salt_v2';
-  return crypto.scryptSync(pw, salt, 32).toString('hex');
+function hashPassword(pw: string, salt?: string): string {
+  const usedSalt = salt || crypto.randomBytes(16).toString('hex');
+  const derived = crypto.scryptSync(pw, usedSalt, 32).toString('hex');
+  return `${usedSalt}:${derived}`;
+}
+
+function verifyPassword(pw: string, storedHash: string): boolean {
+  if (!storedHash) return false;
+  if (storedHash.includes(':')) {
+    const [salt, expectedHex] = storedHash.split(':');
+    if (!salt || !expectedHex) return false;
+    const derived = crypto.scryptSync(pw, salt, 32);
+    const expected = Buffer.from(expectedHex, 'hex');
+    return derived.length === expected.length && crypto.timingSafeEqual(derived, expected);
+  }
+  // Legacy static-salt compatibility (auto-upgraded on login)
+  const legacyDerived = crypto.scryptSync(pw, 'animexir_salt_v2', 32).toString('hex');
+  return legacyDerived === storedHash;
 }
 
 function createInitialDb(): DatabaseSchema {
+  const initialAdminPass =
+    process.env.ADMIN_INITIAL_PASSWORD || crypto.randomBytes(12).toString('base64url');
+  if (!process.env.ADMIN_INITIAL_PASSWORD) {
+    console.log(`[AnimeXir] İlk yönetici hesabı (${ADMIN_EMAIL}) için tek seferlik başlangıç şifresi: ${initialAdminPass}`);
+  }
   const seededUsers: StoredUser[] = INITIAL_PROFILES.map((p) => ({
     ...p,
-    passwordHash: p.isAdmin ? hashPassword('admin123') : hashPassword('animexir123'),
+    passwordHash: p.isAdmin
+      ? hashPassword(initialAdminPass)
+      : hashPassword(crypto.randomBytes(12).toString('base64url')),
   }));
 
   return {
@@ -107,13 +129,15 @@ function loadDb(): DatabaseSchema {
     }
     let changed = false;
     parsed.users = parsed.users.map((u) => {
+      const isPrimaryAdmin =
+        u.id === 'wanderer' || u.email?.toLowerCase() === ADMIN_EMAIL;
       if (u.id === 'wanderer' && u.email !== ADMIN_EMAIL) {
         changed = true;
         return { ...u, email: ADMIN_EMAIL, isAdmin: true, roleBadge: 'Yönetici' };
       }
-      if (u.email?.toLowerCase() === 'kagansami22@gmail.com') {
+      if (!isPrimaryAdmin && (u.isAdmin || u.roleBadge === 'Yönetici')) {
         changed = true;
-        return { ...u, email: ADMIN_EMAIL, isAdmin: true, roleBadge: 'Yönetici' };
+        return { ...u, isAdmin: false, roleBadge: undefined };
       }
       return u;
     });
@@ -249,10 +273,11 @@ function saveDb() {
 }
 
 function sanitizeUser(u: StoredUser, viewerId?: string): CommunityProfile {
-  const { passwordHash: _pw, ...safe } = u;
+  const { passwordHash: _pw, email, ...safe } = u;
   const likers = db.profileLikes?.[u.id] ?? [];
   return {
     ...safe,
+    ...(viewerId && viewerId === u.id && email ? { email } : {}),
     likesCount: likers.length,
     likedByMe: viewerId ? likers.includes(viewerId) : false,
   };
@@ -477,9 +502,14 @@ async function startServer() {
       return;
     }
 
-    if (found.passwordHash && found.passwordHash !== hashPassword(password)) {
+    if (!found.passwordHash || !verifyPassword(password, found.passwordHash)) {
       res.status(401).json({ error: 'Şifre hatalı.' });
       return;
+    }
+
+    // Upgrade legacy static-salt hash to per-user random salt
+    if (!found.passwordHash.includes(':')) {
+      found.passwordHash = hashPassword(password);
     }
 
     const token = crypto.randomBytes(24).toString('hex');
@@ -488,45 +518,13 @@ async function startServer() {
 
     res.json({
       token,
-      user: sanitizeUser(found),
+      user: sanitizeUser(found, found.id),
     });
   });
 
   app.post('/api/auth/google', (_req: Request, res: Response) => {
-    let adminUser = db.users.find((u) => u.email?.toLowerCase() === ADMIN_EMAIL);
-    if (!adminUser) {
-      adminUser = {
-        id: 'wanderer',
-        displayName: 'Kağan Girgin',
-        handle: '@wanderer',
-        email: ADMIN_EMAIL,
-        isAdmin: true,
-        avatarUrl: REAL_CHARACTER_AVATARS[3].avatarUrl,
-        bannerUrl: REAL_CHARACTER_AVATARS[3].bannerUrl,
-        accentColor: 'crimson',
-        roleBadge: 'Yönetici',
-        badges: [
-          { id: 'role-admin', label: 'Yönetici', type: 'role' },
-          { id: 'early-admin', label: 'Erken Destekçi', type: 'early' },
-        ],
-        bio: 'AnimeXir kurucu yöneticisi.',
-        watchedEpisodes: 0,
-        favoriteAnimeIds: [],
-        watchlistIds: [],
-        friendsCount: 0,
-        isPremium: true,
-        profileComments: [],
-      };
-      db.users.unshift(adminUser);
-    }
-
-    const token = crypto.randomBytes(24).toString('hex');
-    db.sessions[token] = adminUser.id;
-    saveDb();
-
-    res.json({
-      token,
-      user: sanitizeUser(adminUser),
+    res.status(503).json({
+      error: 'Google ile giriş doğrulaması henüz etkinleştirilmedi. Lütfen e-posta ve şifre ile giriş yapın.',
     });
   });
 
@@ -537,13 +535,22 @@ async function startServer() {
       .trim()
       .toLowerCase()
       .replace(/^@/, '');
+    const rawPassword = String(password ?? '');
 
-    if (!cleanEmail || /[çğıöşü]/i.test(cleanEmail)) {
+    if (!cleanEmail || /[çğıöşü]/i.test(cleanEmail) || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) {
       res.status(400).json({ error: 'Geçerli bir e-posta adresi gir. Türkçe karakter kullanılamaz.' });
       return;
     }
     if (cleanHandle.length < 3) {
       res.status(400).json({ error: 'Kullanıcı adı en az 3 karakter olmalı.' });
+      return;
+    }
+    if (rawPassword.length < 6) {
+      res.status(400).json({ error: 'Şifre en az 6 karakter olmalı.' });
+      return;
+    }
+    if (db.users.some((u) => u.email && u.email.toLowerCase() === cleanEmail)) {
+      res.status(409).json({ error: 'Bu e-posta adresi zaten kayıtlı.' });
       return;
     }
     if (db.users.some((u) => u.handle.replace('@', '').toLowerCase() === cleanHandle)) {
@@ -556,8 +563,7 @@ async function startServer() {
       displayName: String(displayName ?? '').trim() || cleanHandle,
       handle: `@${cleanHandle}`,
       email: cleanEmail,
-      isAdmin: cleanEmail === ADMIN_EMAIL,
-      roleBadge: cleanEmail === ADMIN_EMAIL ? 'Yönetici' : undefined,
+      isAdmin: false,
       avatarUrl: avatarUrl || REAL_CHARACTER_AVATARS[0].avatarUrl,
       bannerUrl: bannerUrl || REAL_CHARACTER_AVATARS[0].bannerUrl,
       accentColor: accentColor || 'crimson',
@@ -571,7 +577,7 @@ async function startServer() {
       favoriteGenres: [],
       topAnimePicks: [],
       profileComments: [],
-      passwordHash: hashPassword(String(password || '123456')),
+      passwordHash: hashPassword(rawPassword),
     };
 
     db.users.unshift(newUser);
@@ -581,8 +587,38 @@ async function startServer() {
 
     res.status(201).json({
       token,
-      user: sanitizeUser(newUser),
+      user: sanitizeUser(newUser, newUser.id),
     });
+  });
+
+  app.post('/api/auth/change-password', requireAuth, (req: AuthedRequest, res: Response) => {
+    const user = req.user!;
+    const currentPassword = String(req.body?.currentPassword ?? '');
+    const newPassword = String(req.body?.newPassword ?? '');
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Mevcut şifre ve yeni şifre gerekli.' });
+      return;
+    }
+    if (newPassword.length < 8) {
+      res.status(400).json({ error: 'Yeni şifre en az 8 karakter olmalı.' });
+      return;
+    }
+    if (user.passwordHash && !verifyPassword(currentPassword, user.passwordHash)) {
+      res.status(401).json({ error: 'Mevcut şifre hatalı.' });
+      return;
+    }
+
+    user.passwordHash = hashPassword(newPassword);
+    // Invalidate all other active sessions for this user for safety
+    const currentToken = req.sessionToken;
+    for (const [tok, uid] of Object.entries(db.sessions)) {
+      if (uid === user.id && tok !== currentToken) {
+        delete db.sessions[tok];
+      }
+    }
+    saveDb();
+    res.json({ ok: true });
   });
 
   app.post('/api/auth/logout', (req: AuthedRequest, res: Response) => {

@@ -42,6 +42,7 @@ export const ProfileModal: React.FC<{ asPage?: boolean }> = ({ asPage = false })
 
   const [commentInput, setCommentInput] = useState('');
   const [editing, setEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState(profile?.displayName ?? '');
   const [bioDraft, setBioDraft] = useState(profile?.bio ?? '');
   const [charSearch, setCharSearch] = useState('');
   const [charResults, setCharResults] = useState<RealCharacterPreset[]>(REAL_CHARACTER_AVATARS);
@@ -152,6 +153,7 @@ export const ProfileModal: React.FC<{ asPage?: boolean }> = ({ asPage = false })
                 </button>
                 <button
                   onClick={() => {
+                    setNameDraft(profile.displayName);
                     setBioDraft(profile.bio);
                     setEditing((e) => !e);
                   }}
@@ -285,6 +287,24 @@ export const ProfileModal: React.FC<{ asPage?: boolean }> = ({ asPage = false })
         {isMe && editing && (
           <div className="mt-6 rounded-2xl border border-white/10 bg-[#1A1A22] p-5 space-y-4">
             <h3 className="text-sm font-bold text-white">Profil Özelleştirme (Gerçek Anime Görselleri)</h3>
+
+            <div>
+              <label className="mb-1.5 block text-xs text-zinc-400">Görünen İsim</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  className="h-10 flex-1 rounded-xl border border-white/10 bg-[#121217] px-3 text-sm text-white focus:border-[#FF2E54] focus:outline-none"
+                />
+                <button
+                  onClick={() => updateCurrentUserProfile({ displayName: nameDraft })}
+                  className="h-10 rounded-xl bg-[#FF2E54] px-4 text-xs font-semibold text-white cursor-pointer"
+                >
+                  Kaydet
+                </button>
+              </div>
+            </div>
 
             <div>
               <label className="mb-1.5 block text-xs text-zinc-400">Biyografi</label>

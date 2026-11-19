@@ -1,0 +1,296 @@
+{
+  "entities": {
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Public community profile without PII",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "handle": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "avatarUrl": { "type": "string", "maxLength": 1000 },
+        "bannerUrl": { "type": "string", "maxLength": 1000 },
+        "accentColor": {
+          "type": "string",
+          "enum": ["crimson", "sky", "violet", "emerald", "amber"]
+        },
+        "isAdmin": { "type": "boolean" },
+        "roleBadge": { "type": "string", "maxLength": 32 },
+        "badges": { "type": "array" },
+        "bio": { "type": "string", "maxLength": 400 },
+        "watchedEpisodes": { "type": "number" },
+        "favoriteAnimeIds": { "type": "array" },
+        "watchlistIds": { "type": "array" },
+        "friendsCount": { "type": "number" },
+        "isPremium": { "type": "boolean" },
+        "premiumPlanName": { "type": "string", "maxLength": 64 },
+        "privacyAcceptedAt": { "type": "string", "maxLength": 64 },
+        "onboardingCompleted": { "type": "boolean" },
+        "favoriteGenres": { "type": "array" },
+        "topAnimePicks": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "displayName", "handle", "avatarUrl", "bannerUrl", "accentColor", "isAdmin"]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Private PII and personal lists restricted to the owning user or admin",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "watchlistIds": { "type": "array" },
+        "favoriteIds": { "type": "array" },
+        "friendsIds": { "type": "array" },
+        "ratings": { "type": "object" },
+        "watchProgressMap": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "ProfileLike": {
+      "title": "ProfileLike",
+      "description": "Atomic profile like record keyed by targetUserId_userId",
+      "type": "object",
+      "properties": {
+        "targetUserId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetUserId", "userId", "createdAt"]
+    },
+    "WallComment": {
+      "title": "WallComment",
+      "description": "Public message posted on a member profile wall",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "targetUserId": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 64 },
+        "authorHandle": { "type": "string", "maxLength": 40 },
+        "authorAvatar": { "type": "string", "maxLength": 1000 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "createdAtMs": { "type": "number" }
+      },
+      "required": ["id", "targetUserId", "authorId", "authorName", "authorHandle", "text", "createdAtMs"]
+    },
+    "Anime": {
+      "title": "Anime",
+      "description": "Catalog anime item managed exclusively by admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "anilistId": { "type": "number" },
+        "slug": { "type": "string", "maxLength": 160 },
+        "title": { "type": "string", "maxLength": 200 },
+        "stylizedTitle": { "type": "string", "maxLength": 200 },
+        "synopsis": { "type": "string", "maxLength": 4000 },
+        "posterUrl": { "type": "string", "maxLength": 1000 },
+        "bannerUrl": { "type": "string", "maxLength": 1000 },
+        "logoUrl": { "type": "string", "maxLength": 1000 },
+        "trailerId": { "type": "string", "maxLength": 100 },
+        "score": { "type": "number" },
+        "year": { "type": "number" },
+        "studio": { "type": "string", "maxLength": 120 },
+        "status": { "type": "string", "maxLength": 32 },
+        "hasDub": { "type": "boolean" },
+        "featured": { "type": "boolean" },
+        "episodeCount": { "type": "number" },
+        "latestEpisode": { "type": "number" },
+        "genres": { "type": "array" },
+        "moods": { "type": "array" },
+        "awardTag": { "type": "string", "maxLength": 64 },
+        "weeklyRank": { "type": "number" },
+        "weeklyViews": { "type": "string", "maxLength": 40 },
+        "broadcastDay": { "type": "string", "maxLength": 32 },
+        "broadcastTime": { "type": "string", "maxLength": 16 },
+        "episodes": { "type": "array" }
+      },
+      "required": ["id", "slug", "title", "posterUrl", "bannerUrl", "episodes"]
+    },
+    "EpisodeComment": {
+      "title": "EpisodeComment",
+      "description": "Comment on an anime episode",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "animeId": { "type": "string", "maxLength": 128 },
+        "episodeNumber": { "type": "number" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 64 },
+        "handle": { "type": "string", "maxLength": 40 },
+        "avatarUrl": { "type": "string", "maxLength": 1000 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "rating": { "type": "number" },
+        "likes": { "type": "number" },
+        "likedBy": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "createdAtMs": { "type": "number" }
+      },
+      "required": ["id", "animeId", "episodeNumber", "userId", "displayName", "handle", "text", "likes", "createdAtMs"]
+    },
+    "DirectMessage": {
+      "title": "DirectMessage",
+      "description": "Private 1-on-1 message accessible only to its two participants",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "conversationKey": { "type": "string", "maxLength": 260 },
+        "participants": { "type": "array" },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "receiverId": { "type": "string", "maxLength": 128 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "createdAtMs": { "type": "number" },
+        "readByReceiver": { "type": "boolean" }
+      },
+      "required": ["id", "conversationKey", "participants", "senderId", "receiverId", "text", "createdAtMs", "readByReceiver"]
+    },
+    "WatchPartyRoom": {
+      "title": "WatchPartyRoom",
+      "description": "Shared watch party room",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "maxLength": 80 },
+        "animeId": { "type": "string", "maxLength": 128 },
+        "episodeNumber": { "type": "number" },
+        "hostId": { "type": "string", "maxLength": 128 },
+        "hostName": { "type": "string", "maxLength": 64 },
+        "hostAvatar": { "type": "string", "maxLength": 1000 },
+        "viewerCount": { "type": "number" },
+        "isPlaying": { "type": "boolean" },
+        "currentTime": { "type": "number" },
+        "messages": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["code", "name", "animeId", "episodeNumber", "hostId", "hostName"]
+    },
+    "PremiumPlan": {
+      "title": "PremiumPlan",
+      "description": "Premium tier plan managed by admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 64 },
+        "tagline": { "type": "string", "maxLength": 160 },
+        "price": { "type": "number" },
+        "periodLabel": { "type": "string", "maxLength": 32 },
+        "durationDays": { "type": "number" },
+        "popular": { "type": "boolean" },
+        "badgeLabel": { "type": "string", "maxLength": 40 },
+        "features": { "type": "array" }
+      },
+      "required": ["id", "name", "tagline", "price", "periodLabel", "durationDays", "features"]
+    },
+    "PremiumGiveaway": {
+      "title": "PremiumGiveaway",
+      "description": "Active or past premium giveaway",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 120 },
+        "prizeLabel": { "type": "string", "maxLength": 80 },
+        "durationHours": { "type": "number" },
+        "startedAt": { "type": "string", "maxLength": 64 },
+        "endsAt": { "type": "string", "maxLength": 64 },
+        "active": { "type": "boolean" },
+        "participantIds": { "type": "array" },
+        "winnerId": { "type": "string", "maxLength": 128 },
+        "winnerName": { "type": "string", "maxLength": 64 },
+        "winnerHandle": { "type": "string", "maxLength": 40 }
+      },
+      "required": ["id", "title", "prizeLabel", "durationHours", "startedAt", "endsAt", "active", "participantIds"]
+    },
+    "PremiumOrder": {
+      "title": "PremiumOrder",
+      "description": "User premium purchase request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userDisplayName": { "type": "string", "maxLength": 64 },
+        "userHandle": { "type": "string", "maxLength": 40 },
+        "planId": { "type": "string", "maxLength": 64 },
+        "planName": { "type": "string", "maxLength": 64 },
+        "price": { "type": "number" },
+        "periodLabel": { "type": "string", "maxLength": 32 },
+        "note": { "type": "string", "maxLength": 300 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "createdAtMs": { "type": "number" }
+      },
+      "required": ["id", "userId", "planId", "planName", "price", "status", "createdAtMs"]
+    },
+    "LiveTickerItem": {
+      "title": "LiveTickerItem",
+      "description": "Live activity feed item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 64 },
+        "avatarUrl": { "type": "string", "maxLength": 1000 },
+        "animeId": { "type": "string", "maxLength": 128 },
+        "animeTitle": { "type": "string", "maxLength": 160 },
+        "episodeNumber": { "type": "number" },
+        "scoreLabel": { "type": "string", "maxLength": 32 },
+        "comment": { "type": "string", "maxLength": 300 },
+        "createdAtMs": { "type": "number" }
+      },
+      "required": ["id", "userId", "username", "animeId", "animeTitle", "comment", "createdAtMs"]
+    }
+  },
+  "firestore": {
+    "/publicProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Public profile information without PII"
+    },
+    "/userPrivate/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Private PII and user-specific lists/progress"
+    },
+    "/profileLikes/{likeId}": {
+      "schema": { "$ref": "#/entities/ProfileLike" },
+      "description": "Profile likes"
+    },
+    "/wallComments/{commentId}": {
+      "schema": { "$ref": "#/entities/WallComment" },
+      "description": "Profile wall comments"
+    },
+    "/animes/{animeId}": {
+      "schema": { "$ref": "#/entities/Anime" },
+      "description": "Anime catalog and episode mirrors/subtitles"
+    },
+    "/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/EpisodeComment" },
+      "description": "Episode comments"
+    },
+    "/directMessages/{msgId}": {
+      "schema": { "$ref": "#/entities/DirectMessage" },
+      "description": "Private 1:1 direct messages"
+    },
+    "/rooms/{roomCode}": {
+      "schema": { "$ref": "#/entities/WatchPartyRoom" },
+      "description": "Watch party rooms"
+    },
+    "/premiumPlans/{planId}": {
+      "schema": { "$ref": "#/entities/PremiumPlan" },
+      "description": "Premium store plans"
+    },
+    "/giveaways/{giveawayId}": {
+      "schema": { "$ref": "#/entities/PremiumGiveaway" },
+      "description": "Premium giveaways"
+    },
+    "/premiumOrders/{orderId}": {
+      "schema": { "$ref": "#/entities/PremiumOrder" },
+      "description": "Premium purchase orders"
+    },
+    "/tickerItems/{itemId}": {
+      "schema": { "$ref": "#/entities/LiveTickerItem" },
+      "description": "Community live ticker entries"
+    }
+  }
+}
