@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   ChevronLeft,
@@ -28,6 +28,97 @@ function formatCountdown(totalSeconds: number) {
   const secs = totalSeconds % 60;
   return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
+
+const trimmedLogoCache = new Map<string, string>();
+
+const HeroTitleLogo: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
+  const [resolvedSrc, setResolvedSrc] = useState<string>(() => trimmedLogoCache.get(src) ?? src);
+
+  useEffect(() => {
+    const cached = trimmedLogoCache.get(src);
+    if (cached) {
+      setResolvedSrc(cached);
+      return;
+    }
+    setResolvedSrc(src);
+
+    if (!src.startsWith('http://') && !src.startsWith('https://')) return;
+
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (cancelled || img.naturalWidth === 0 || img.naturalHeight === 0) return;
+      try {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return;
+
+        ctx.drawImage(img, 0, 0);
+        const { data } = ctx.getImageData(0, 0, w, h);
+
+        let minX = w;
+        let minY = h;
+        let maxX = -1;
+        let maxY = -1;
+
+        for (let y = 0; y < h; y++) {
+          const rowOffset = y * w * 4;
+          for (let x = 0; x < w; x++) {
+            if (data[rowOffset + x * 4 + 3] > 12) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        if (maxX < minX || maxY < minY) return;
+
+        const pad = 4;
+        const cropX = Math.max(0, minX - pad);
+        const cropY = Math.max(0, minY - pad);
+        const cropW = Math.min(w - cropX, maxX - minX + 1 + pad * 2);
+        const cropH = Math.min(h - cropY, maxY - minY + 1 + pad * 2);
+
+        if (cropW < w * 0.94 || cropH < h * 0.94) {
+          const out = document.createElement('canvas');
+          out.width = cropW;
+          out.height = cropH;
+          const outCtx = out.getContext('2d');
+          if (!outCtx) return;
+          outCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          const trimmedDataUrl = out.toDataURL('image/png');
+          trimmedLogoCache.set(src, trimmedDataUrl);
+          if (!cancelled) setResolvedSrc(trimmedDataUrl);
+        } else {
+          trimmedLogoCache.set(src, src);
+        }
+      } catch {
+        // fallback cleanly to original src
+      }
+    };
+    img.src = `/api/image-proxy?url=${encodeURIComponent(src)}`;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return (
+    <img
+      src={resolvedSrc}
+      alt={alt}
+      referrerPolicy="no-referrer"
+      className="w-[240px] sm:w-[330px] lg:w-[400px] max-h-24 sm:max-h-32 lg:max-h-36 h-auto object-contain object-left drop-shadow-[0_6px_22px_rgba(0,0,0,0.9)]"
+    />
+  );
+};
 
 export const HomeView: React.FC = () => {
   const {
@@ -183,7 +274,7 @@ export const HomeView: React.FC = () => {
           </div>
         </section>
       ) : (
-      <section className="relative h-[min(88vh,450px)] min-h-[350px] w-full overflow-hidden border-b border-white/[0.06]">
+      <section className="relative h-[min(88vh,480px)] min-h-[360px] w-full overflow-hidden border-b border-white/[0.06]">
         <img
           src={activeHero.bannerUrl || activeHero.posterUrl}
           alt={activeHero.title}
@@ -217,12 +308,7 @@ export const HomeView: React.FC = () => {
         <div className="relative z-10 mx-auto flex h-full max-w-[1440px] flex-col justify-end px-11 pb-6 pt-24 sm:px-14 sm:pb-7 lg:px-16">
           <div className="max-w-xl">
             {activeHero.logoUrl ? (
-              <img
-                src={activeHero.logoUrl}
-                alt={activeHero.title}
-                referrerPolicy="no-referrer"
-                className="max-h-14 sm:max-h-20 w-auto object-contain drop-shadow-[0_6px_18px_rgba(0,0,0,0.85)]"
-              />
+              <HeroTitleLogo src={activeHero.logoUrl} alt={activeHero.title} />
             ) : (
               <h1
                 className="font-display text-2xl sm:text-4xl lg:text-[42px] leading-tight font-extrabold tracking-wide text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]"
