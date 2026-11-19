@@ -634,6 +634,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       if (!fbUser.emailVerified) {
+        try {
+          await fbUser.reload();
+        } catch {
+          // ignore offline reload failures
+        }
+      }
+
+      if (!fbUser.emailVerified) {
         setFbUid(null);
         setFbEmail(null);
         setFbEmailVerified(false);
@@ -654,6 +662,55 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return () => unsub();
   }, []);
+
+  // Auto-detect when user clicks the Gmail activation link and returns to this tab
+  useEffect(() => {
+    if (window.location.search.includes('verified=1')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingVerificationEmail) return;
+    let active = true;
+
+    const checkActivation = async () => {
+      const user = auth.currentUser;
+      if (!user || !active) return;
+      try {
+        await user.reload();
+        if (user.emailVerified && active) {
+          await user.getIdToken(true);
+          await provisionVerifiedUser(user);
+          closeAuthModal();
+          showToast(`Hesabın aktif edildi! Hoş geldin ${user.displayName || user.email}`);
+        }
+      } catch {
+        // ignore transient network errors
+      }
+    };
+
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void checkActivation();
+      }
+    };
+
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void checkActivation();
+      }
+    }, 4000);
+
+    return () => {
+      active = false;
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+      clearInterval(interval);
+    };
+  }, [pendingVerificationEmail]);
 
   // 3. Authenticated-Only Firestore Listeners (userPrivate, DMs, Orders)
   useEffect(() => {
@@ -821,6 +878,17 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const sendActivationEmail = async (user: NonNullable<typeof auth.currentUser>) => {
+    try {
+      await sendEmailVerification(user, {
+        url: `${window.location.origin}/?verified=1`,
+        handleCodeInApp: false,
+      });
+    } catch {
+      await sendEmailVerification(user);
+    }
+  };
+
   const loginWithCredentials = async (
     identifier: string,
     password: string
@@ -836,11 +904,15 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
       if (!cred.user.emailVerified) {
+        await cred.user.reload().catch(() => {});
+      }
+      if (!cred.user.emailVerified) {
         setPendingVerificationEmail(cred.user.email ?? cleanEmail);
+        void sendActivationEmail(cred.user).catch(() => {});
         return {
           ok: false,
           needsVerification: true,
-          error: 'Devam etmek için e-posta adresine gönderilen doğrulama linkine tıklamalısın.',
+          error: 'Hesabını aktif etmek için e-postana gönderilen bağlantıya tıklamalısın.',
         };
       }
 
@@ -916,9 +988,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } catch {
         // ignore storage restrictions
       }
-      await sendEmailVerification(cred.user);
+      await sendActivationEmail(cred.user);
       setPendingVerificationEmail(cred.user.email ?? cleanEmail);
-      showToast('Doğrulama bağlantısı e-posta adresine gönderildi!');
+      showToast('Aktivasyon bağlantısı Gmail / e-posta adresine gönderildi!');
       return { ok: true, needsVerification: true };
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code ?? '';
@@ -942,15 +1014,15 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return { ok: false, error: 'Aktif oturum bulunamadı. Tekrar giriş yapın.' };
     }
     try {
-      await sendEmailVerification(user);
-      showToast('Doğrulama maili tekrar gönderildi.');
+      await sendActivationEmail(user);
+      showToast('Aktivasyon maili tekrar gönderildi.');
       return { ok: true };
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code ?? '';
       if (code === 'auth/too-many-requests') {
         return { ok: false, error: 'Çok sık mail istendi. 1 dakika bekleyip tekrar dene.' };
       }
-      return { ok: false, error: 'Doğrulama maili gönderilemedi.' };
+      return { ok: false, error: 'Aktivasyon maili gönderilemedi.' };
     }
   };
 

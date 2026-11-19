@@ -270,11 +270,11 @@ export const AuthModal: React.FC = () => {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FF2E54]/15 text-[#FF4D6D]">
               <MailCheck className="h-7 w-7" />
             </div>
-            <h2 className="text-2xl font-bold text-white">E-postanı Doğrula</h2>
+            <h2 className="text-2xl font-bold text-white">Hesabını Aktif Hale Getir</h2>
             <p className="mt-2 text-sm leading-relaxed text-zinc-400">
               <span className="font-semibold text-white">{pendingVerificationEmail}</span> adresine
-              bir doğrulama bağlantısı gönderdik. Gelen kutundaki (veya Spam klasöründeki) linke
-              tıkladıktan sonra devam edebilirsin.
+              hesap aktivasyon bağlantısı gönderdik. Gmail gelen kutunu (ve Spam / Tanıtımlar
+              klasörünü) açıp bağlantıya tıkladığında hesabın otomatik olarak aktifleşecektir.
             </p>
 
             {errorMsg && (
@@ -306,13 +306,23 @@ export const AuthModal: React.FC = () => {
             </button>
 
             <div className="mt-3 flex flex-col gap-2">
+              {pendingVerificationEmail.endsWith('@gmail.com') && (
+                <a
+                  href="https://mail.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.06] text-xs font-semibold text-white hover:bg-white/[0.12]"
+                >
+                  <Mail className="h-3.5 w-3.5" /> Gmail Gelen Kutusunu Aç
+                </a>
+              )}
               <button
                 type="button"
                 disabled={submitting}
                 onClick={handleResendVerification}
                 className="flex h-10 w-full items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xs font-semibold text-zinc-200 hover:bg-white/[0.08] cursor-pointer"
               >
-                Doğrulama Mailini Tekrar Gönder
+                Aktivasyon Mailini Tekrar Gönder
               </button>
               <button
                 type="button"
