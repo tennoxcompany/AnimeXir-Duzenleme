@@ -1,5 +1,17 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import {
+  EmailAuthProvider,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updatePassword,
+  updateProfile,
+} from 'firebase/auth';
 import {
   collection,
   deleteDoc,
@@ -92,12 +104,18 @@ interface AppContextValue {
   openAuthModal: (mode: 'login' | 'register') => void;
   closeAuthModal: () => void;
   currentUser: CommunityProfile | null;
+  pendingVerificationEmail: string | null;
   loginWithCredentials: (
     identifier: string,
     password: string
-  ) => Promise<{ ok: boolean; error?: string }>;
+  ) => Promise<{ ok: boolean; error?: string; needsVerification?: boolean }>;
   loginWithGoogle: () => Promise<{ ok: boolean; error?: string }>;
-  registerAccount: (payload: RegisterPayload) => Promise<{ ok: boolean; error?: string }>;
+  registerAccount: (
+    payload: RegisterPayload
+  ) => Promise<{ ok: boolean; error?: string; needsVerification?: boolean }>;
+  resendVerificationEmail: () => Promise<{ ok: boolean; error?: string }>;
+  refreshEmailVerification: () => Promise<{ ok: boolean; verified: boolean; error?: string }>;
+  sendPasswordReset: (email: string) => Promise<{ ok: boolean; error?: string }>;
   changePassword: (
     currentPassword: string,
     newPassword: string
@@ -243,6 +261,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [fbUid, setFbUid] = useState<string | null>(null);
   const [fbEmail, setFbEmail] = useState<string | null>(null);
   const [fbEmailVerified, setFbEmailVerified] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
 
   const [animes, setAnimes] = useState<Anime[]>(ANIME_CATALOG);
   const [activeSection, setActiveSection] = useState<NavSection>('kesfet');
@@ -466,12 +485,143 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   // 2. Firebase Auth State & Initial Profile Provisioning
+  const provisionVerifiedUser = async (fbUser: NonNullable<typeof auth.currentUser>) => {
+    const normalizedEmail = (fbUser.email ?? '').toLowerCase();
+    const verifiedAdmin = fbUser.emailVerified && normalizedEmail === ADMIN_EMAIL;
+
+    setPendingVerificationEmail(null);
+    setFbUid(fbUser.uid);
+    setFbEmail(normalizedEmail || null);
+    setFbEmailVerified(fbUser.emailVerified);
+    setAuthReady(true);
+
+    try {
+      const profileRef = doc(db, 'publicProfiles', fbUser.uid);
+      const profileSnap = await getDoc(profileRef);
+
+      if (!profileSnap.exists()) {
+        let pendingMeta: Partial<RegisterPayload> | null = null;
+        try {
+          const raw = sessionStorage.getItem(`animexir_pending_profile_${fbUser.uid}`);
+          if (raw) {
+            pendingMeta = JSON.parse(raw) as Partial<RegisterPayload>;
+            sessionStorage.removeItem(`animexir_pending_profile_${fbUser.uid}`);
+          }
+        } catch {
+          pendingMeta = null;
+        }
+
+        const baseName =
+          pendingMeta?.displayName?.trim() ||
+          fbUser.displayName?.trim() ||
+          normalizedEmail.split('@')[0] ||
+          'AnimeXir Üyesi';
+        const cleanSlug = (pendingMeta?.handle || baseName)
+          .toLowerCase()
+          .replace(/^@+/, '')
+          .replace(/[^a-z0-9_]/g, '')
+          .slice(0, 18);
+        const defaultHandle = verifiedAdmin
+          ? '@wanderer'
+          : cleanSlug.length >= 2
+            ? `@${cleanSlug}`
+            : `@otaku${fbUser.uid.slice(0, 4).toLowerCase()}`;
+        const preset = verifiedAdmin ? REAL_CHARACTER_AVATARS[3] : REAL_CHARACTER_AVATARS[0];
+
+        const newPublicProfile = stripUndefined({
+          id: fbUser.uid,
+          displayName: baseName.slice(0, 64),
+          handle: defaultHandle.slice(0, 40),
+          avatarUrl: pendingMeta?.avatarUrl || preset.avatarUrl,
+          bannerUrl: pendingMeta?.bannerUrl || preset.bannerUrl,
+          accentColor: verifiedAdmin
+            ? ('amber' as AccentColorKey)
+            : (pendingMeta?.accentColor ?? ('crimson' as AccentColorKey)),
+          isAdmin: verifiedAdmin,
+          roleBadge: verifiedAdmin ? 'Yönetici' : undefined,
+          badges: verifiedAdmin
+            ? [
+                { id: 'role-admin', label: 'Yönetici', type: 'role' },
+                { id: 'early-admin', label: 'Erken Destekçi', type: 'early' },
+              ]
+            : [{ id: `early-${Date.now()}`, label: 'Erken Destekçi', type: 'early' }],
+          bio: verifiedAdmin
+            ? 'AnimeXir kurucu yöneticisi.'
+            : 'AnimeXir üyesi · Yeni seriler keşfediyor.',
+          watchedEpisodes: 0,
+          favoriteAnimeIds: [],
+          watchlistIds: [],
+          friendsCount: 0,
+          isPremium: verifiedAdmin,
+          privacyAcceptedAt: verifiedAdmin ? new Date().toISOString() : undefined,
+          onboardingCompleted: verifiedAdmin,
+          favoriteGenres: verifiedAdmin ? ['Aksiyon', 'Gizem', 'Fantezi'] : [],
+          topAnimePicks: [],
+          updatedAt: new Date().toISOString(),
+        });
+
+        await setDoc(profileRef, newPublicProfile);
+        if (!verifiedAdmin) {
+          setOnboardingOpen(true);
+        }
+      } else {
+        const existingData = profileSnap.data() as CommunityProfile;
+        if (!verifiedAdmin && existingData.onboardingCompleted === false) {
+          setOnboardingOpen(true);
+        }
+      }
+
+      const privateRef = doc(db, 'userPrivate', fbUser.uid);
+      const privateSnap = await getDoc(privateRef);
+      if (!privateSnap.exists() && normalizedEmail) {
+        await setDoc(privateRef, {
+          uid: fbUser.uid,
+          email: normalizedEmail,
+          watchlistIds: [],
+          favoriteIds: [],
+          friendsIds: [],
+          ratings: {},
+          watchProgressMap: {},
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      if (verifiedAdmin) {
+        const existingAnimes = await getDocs(collection(db, 'animes'));
+        if (existingAnimes.empty) {
+          try {
+            const bootRes = await fetch('/api/bootstrap');
+            if (bootRes.ok && bootRes.headers.get('content-type')?.includes('json')) {
+              const bootData = await bootRes.json();
+              if (Array.isArray(bootData.animes)) {
+                for (const a of bootData.animes as Anime[]) {
+                  await setDoc(doc(db, 'animes', a.id), stripUndefined(a));
+                }
+              }
+            }
+          } catch {
+            // ignore if static deployment has no /api/bootstrap
+          }
+        }
+        const existingPlans = await getDocs(collection(db, 'premiumPlans'));
+        if (existingPlans.empty) {
+          for (const plan of INITIAL_PREMIUM_PLANS) {
+            await setDoc(doc(db, 'premiumPlans', plan.id), stripUndefined(plan));
+          }
+        }
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `publicProfiles/${fbUser.uid}`);
+    }
+  };
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (!fbUser) {
         setFbUid(null);
         setFbEmail(null);
         setFbEmailVerified(false);
+        setPendingVerificationEmail(null);
         setFriendsIds([]);
         setWatchlistIds([]);
         setFavoriteIds([]);
@@ -483,116 +633,23 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      const verifiedAdmin =
-        fbUser.emailVerified && fbUser.email?.toLowerCase() === ADMIN_EMAIL;
-
-      setFbUid(fbUser.uid);
-      setFbEmail(fbUser.email ?? null);
-      setFbEmailVerified(fbUser.emailVerified);
-      setAuthReady(true);
-
-      try {
-        const profileRef = doc(db, 'publicProfiles', fbUser.uid);
-        const profileSnap = await getDoc(profileRef);
-
-        if (!profileSnap.exists()) {
-          const baseName =
-            fbUser.displayName?.trim() ||
-            fbUser.email?.split('@')[0] ||
-            'AnimeXir Üyesi';
-          const cleanSlug = baseName
-            .toLowerCase()
-            .replace(/[^a-z0-9_]/g, '')
-            .slice(0, 14);
-          const defaultHandle = verifiedAdmin
-            ? '@wanderer'
-            : `@${cleanSlug || 'otaku'}${fbUser.uid.slice(0, 4).toLowerCase()}`;
-          const preset = verifiedAdmin ? REAL_CHARACTER_AVATARS[3] : REAL_CHARACTER_AVATARS[0];
-
-          const newPublicProfile = stripUndefined({
-            id: fbUser.uid,
-            displayName: baseName.slice(0, 64),
-            handle: defaultHandle.slice(0, 40),
-            avatarUrl: preset.avatarUrl,
-            bannerUrl: preset.bannerUrl,
-            accentColor: verifiedAdmin ? ('amber' as AccentColorKey) : ('crimson' as AccentColorKey),
-            isAdmin: verifiedAdmin,
-            roleBadge: verifiedAdmin ? 'Yönetici' : undefined,
-            badges: verifiedAdmin
-              ? [
-                  { id: 'role-admin', label: 'Yönetici', type: 'role' },
-                  { id: 'early-admin', label: 'Erken Destekçi', type: 'early' },
-                ]
-              : [{ id: `early-${Date.now()}`, label: 'Erken Destekçi', type: 'early' }],
-            bio: verifiedAdmin
-              ? 'AnimeXir kurucu yöneticisi.'
-              : 'AnimeXir üyesi · Yeni seriler keşfediyor.',
-            watchedEpisodes: 0,
-            favoriteAnimeIds: [],
-            watchlistIds: [],
-            friendsCount: 0,
-            isPremium: verifiedAdmin,
-            privacyAcceptedAt: verifiedAdmin ? new Date().toISOString() : undefined,
-            onboardingCompleted: verifiedAdmin,
-            favoriteGenres: verifiedAdmin ? ['Aksiyon', 'Gizem', 'Fantezi'] : [],
-            topAnimePicks: [],
-            updatedAt: new Date().toISOString(),
-          });
-
-          await setDoc(profileRef, newPublicProfile);
-          if (!verifiedAdmin) {
-            setOnboardingOpen(true);
-          }
-        } else {
-          const existingData = profileSnap.data() as CommunityProfile;
-          if (!verifiedAdmin && existingData.onboardingCompleted === false) {
-            setOnboardingOpen(true);
-          }
-        }
-
-        const privateRef = doc(db, 'userPrivate', fbUser.uid);
-        const privateSnap = await getDoc(privateRef);
-        if (!privateSnap.exists() && fbUser.email) {
-          await setDoc(privateRef, {
-            uid: fbUser.uid,
-            email: fbUser.email,
-            watchlistIds: [],
-            favoriteIds: [],
-            friendsIds: [],
-            ratings: {},
-            watchProgressMap: {},
-            updatedAt: new Date().toISOString(),
-          });
-        }
-
-        // First-run admin convenience: seed default plans or existing local AI Studio catalog if Firestore is empty
-        if (verifiedAdmin) {
-          const existingAnimes = await getDocs(collection(db, 'animes'));
-          if (existingAnimes.empty) {
-            try {
-              const bootRes = await fetch('/api/bootstrap');
-              if (bootRes.ok && bootRes.headers.get('content-type')?.includes('json')) {
-                const bootData = await bootRes.json();
-                if (Array.isArray(bootData.animes)) {
-                  for (const a of bootData.animes as Anime[]) {
-                    await setDoc(doc(db, 'animes', a.id), stripUndefined(a));
-                  }
-                }
-              }
-            } catch {
-              // ignore if static deployment has no /api/bootstrap
-            }
-          }
-          const existingPlans = await getDocs(collection(db, 'premiumPlans'));
-          if (existingPlans.empty) {
-            for (const plan of INITIAL_PREMIUM_PLANS) {
-              await setDoc(doc(db, 'premiumPlans', plan.id), stripUndefined(plan));
-            }
-          }
-        }
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `publicProfiles/${fbUser.uid}`);
+      if (!fbUser.emailVerified) {
+        setFbUid(null);
+        setFbEmail(null);
+        setFbEmailVerified(false);
+        setPendingVerificationEmail(fbUser.email ?? 'E-posta adresin');
+        setFriendsIds([]);
+        setWatchlistIds([]);
+        setFavoriteIds([]);
+        setUserRatings({});
+        setDirectMessages([]);
+        setPremiumOrders([]);
+        setOnboardingOpen(false);
+        setAuthReady(true);
+        return;
       }
+
+      await provisionVerifiedUser(fbUser);
     });
 
     return () => unsub();
@@ -764,25 +821,222 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const loginWithCredentials = async (_identifier: string, _password: string) => {
-    return {
-      ok: false,
-      error: 'Güvenlik nedeniyle tüm girişler yukarıdaki "Google ile Devam Et" üzerinden yapılır.',
-    };
+  const loginWithCredentials = async (
+    identifier: string,
+    password: string
+  ): Promise<{ ok: boolean; error?: string; needsVerification?: boolean }> => {
+    const cleanEmail = identifier.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { ok: false, error: 'Lütfen geçerli bir e-posta adresi gir.' };
+    }
+    if (!password) {
+      return { ok: false, error: 'Lütfen şifreni gir.' };
+    }
+
+    try {
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      if (!cred.user.emailVerified) {
+        setPendingVerificationEmail(cred.user.email ?? cleanEmail);
+        return {
+          ok: false,
+          needsVerification: true,
+          error: 'Devam etmek için e-posta adresine gönderilen doğrulama linkine tıklamalısın.',
+        };
+      }
+
+      closeAuthModal();
+      const isAdminAccount =
+        cred.user.emailVerified && cred.user.email?.toLowerCase() === ADMIN_EMAIL;
+      showToast(
+        isAdminAccount
+          ? `Hoş geldin Yönetici ${cred.user.displayName || 'Kağan'}!`
+          : `Hoş geldin, ${cred.user.displayName || cleanEmail}!`
+      );
+      return { ok: true };
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? '';
+      let msg = 'E-posta veya şifre ile giriş yapılamadı.';
+      if (
+        code === 'auth/invalid-credential' ||
+        code === 'auth/user-not-found' ||
+        code === 'auth/wrong-password'
+      ) {
+        msg = 'E-posta adresi veya şifre hatalı.';
+      } else if (code === 'auth/invalid-email') {
+        msg = 'Geçersiz e-posta adresi formatı.';
+      } else if (code === 'auth/too-many-requests') {
+        msg = 'Çok fazla hatalı deneme yapıldı. Lütfen biraz sonra tekrar dene.';
+      } else if (code === 'auth/operation-not-allowed') {
+        msg = 'E-posta/Şifre girişi Firebase Console → Authentication → Sign-in method bölümünden etkinleştirilmeli.';
+      } else if (code === 'auth/user-disabled') {
+        msg = 'Bu hesap devre dışı bırakılmış.';
+      }
+      return { ok: false, error: msg };
+    }
   };
 
-  const changePassword = async () => {
-    return {
-      ok: false,
-      error: 'Hesabınız Google ile doğrulandığı için şifre yönetimi Google hesabınızdan yapılır.',
-    };
+  const registerAccount = async (
+    payload: RegisterPayload
+  ): Promise<{ ok: boolean; error?: string; needsVerification?: boolean }> => {
+    const cleanEmail = payload.email.trim().toLowerCase();
+    const cleanName = payload.displayName.trim();
+    const cleanHandle = payload.handle
+      .trim()
+      .replace(/^@+/, '')
+      .replace(/[^a-zA-Z0-9_]/g, '')
+      .slice(0, 24);
+
+    if (cleanName.length < 2) {
+      return { ok: false, error: 'Görünen ad en az 2 karakter olmalı.' };
+    }
+    if (cleanHandle.length < 2) {
+      return { ok: false, error: 'Kullanıcı adı en az 2 harf veya rakam içermeli.' };
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { ok: false, error: 'Lütfen geçerli bir e-posta adresi gir.' };
+    }
+    if (payload.password.length < 6) {
+      return { ok: false, error: 'Şifren en az 6 karakter olmalı.' };
+    }
+
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, payload.password);
+      await updateProfile(cred.user, { displayName: cleanName.slice(0, 64) });
+      try {
+        sessionStorage.setItem(
+          `animexir_pending_profile_${cred.user.uid}`,
+          JSON.stringify({
+            displayName: cleanName.slice(0, 64),
+            handle: cleanHandle,
+            avatarUrl: payload.avatarUrl,
+            bannerUrl: payload.bannerUrl,
+            accentColor: payload.accentColor,
+          })
+        );
+      } catch {
+        // ignore storage restrictions
+      }
+      await sendEmailVerification(cred.user);
+      setPendingVerificationEmail(cred.user.email ?? cleanEmail);
+      showToast('Doğrulama bağlantısı e-posta adresine gönderildi!');
+      return { ok: true, needsVerification: true };
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? '';
+      let msg = 'Kayıt işlemi tamamlanamadı.';
+      if (code === 'auth/email-already-in-use') {
+        msg = 'Bu e-posta adresi zaten kayıtlı. Giriş yapmayı deneyebilirsin.';
+      } else if (code === 'auth/invalid-email') {
+        msg = 'Geçersiz e-posta adresi formatı.';
+      } else if (code === 'auth/weak-password') {
+        msg = 'Şifre çok zayıf. En az 6 karakter kullanın.';
+      } else if (code === 'auth/operation-not-allowed') {
+        msg = 'E-posta/Şifre kaydı Firebase Console → Authentication → Sign-in method bölümünden etkinleştirilmeli.';
+      }
+      return { ok: false, error: msg };
+    }
   };
 
-  const registerAccount = async (_payload: RegisterPayload) => {
-    return {
-      ok: false,
-      error: 'Hesap oluşturmak için yukarıdaki "Google ile Devam Et" butonunu kullanın.',
-    };
+  const resendVerificationEmail = async (): Promise<{ ok: boolean; error?: string }> => {
+    const user = auth.currentUser;
+    if (!user) {
+      return { ok: false, error: 'Aktif oturum bulunamadı. Tekrar giriş yapın.' };
+    }
+    try {
+      await sendEmailVerification(user);
+      showToast('Doğrulama maili tekrar gönderildi.');
+      return { ok: true };
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? '';
+      if (code === 'auth/too-many-requests') {
+        return { ok: false, error: 'Çok sık mail istendi. 1 dakika bekleyip tekrar dene.' };
+      }
+      return { ok: false, error: 'Doğrulama maili gönderilemedi.' };
+    }
+  };
+
+  const refreshEmailVerification = async (): Promise<{
+    ok: boolean;
+    verified: boolean;
+    error?: string;
+  }> => {
+    const user = auth.currentUser;
+    if (!user) {
+      return { ok: false, verified: false, error: 'Aktif oturum bulunamadı.' };
+    }
+    try {
+      await user.reload();
+      await user.getIdToken(true);
+      if (user.emailVerified) {
+        await provisionVerifiedUser(user);
+        closeAuthModal();
+        showToast(`E-posta doğrulandı! Hoş geldin ${user.displayName || user.email}`);
+        return { ok: true, verified: true };
+      }
+      return {
+        ok: true,
+        verified: false,
+        error: 'E-posta henüz doğrulanmamış görünüyor. Gelen kutundaki (ve Spam klasöründeki) linke tıkladıktan sonra tekrar dene.',
+      };
+    } catch {
+      return { ok: false, verified: false, error: 'Doğrulama durumu kontrol edilemedi.' };
+    }
+  };
+
+  const sendPasswordReset = async (email: string): Promise<{ ok: boolean; error?: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { ok: false, error: 'Şifre sıfırlama için önce geçerli e-posta adresini yaz.' };
+    }
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      showToast('Şifre sıfırlama bağlantısı e-postana gönderildi.');
+      return { ok: true };
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? '';
+      if (code === 'auth/user-not-found') {
+        return { ok: false, error: 'Bu e-posta adresine kayıtlı bir hesap bulunamadı.' };
+      }
+      if (code === 'auth/invalid-email') {
+        return { ok: false, error: 'Geçersiz e-posta adresi.' };
+      }
+      if (code === 'auth/too-many-requests') {
+        return { ok: false, error: 'Çok fazla istek gönderildi. Biraz sonra tekrar dene.' };
+      }
+      return { ok: false, error: 'Şifre sıfırlama maili gönderilemedi.' };
+    }
+  };
+
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      return { ok: false, error: 'Oturum bulunamadı.' };
+    }
+    const usesPassword = user.providerData.some((p) => p.providerId === 'password');
+    if (!usesPassword) {
+      return {
+        ok: false,
+        error: 'Hesabınız Google ile doğrulandığı için şifre yönetimi Google hesabınızdan yapılır.',
+      };
+    }
+    if (newPassword.length < 6) {
+      return { ok: false, error: 'Yeni şifre en az 6 karakter olmalı.' };
+    }
+    try {
+      const cred = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, cred);
+      await updatePassword(user, newPassword);
+      showToast('Şifren başarıyla güncellendi.');
+      return { ok: true };
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? '';
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        return { ok: false, error: 'Mevcut şifren hatalı.' };
+      }
+      return { ok: false, error: 'Şifre güncellenemedi.' };
+    }
   };
 
   const logout = async () => {
@@ -1779,9 +2033,13 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         openAuthModal,
         closeAuthModal,
         currentUser,
+        pendingVerificationEmail,
         loginWithCredentials,
         loginWithGoogle,
         registerAccount,
+        resendVerificationEmail,
+        refreshEmailVerification,
+        sendPasswordReset,
         changePassword,
         logout,
         updateCurrentUserProfile,
