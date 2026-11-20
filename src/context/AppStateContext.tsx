@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   EmailAuthProvider,
   createUserWithEmailAndPassword,
@@ -255,8 +255,50 @@ function getOrCreateClientId(): string {
   }
 }
 
+interface ParsedAppRoute {
+  section: NavSection;
+  animeKey?: string;
+  episodeNum?: number;
+  roomCode?: string;
+}
+
+function parseRouteFromPathname(pathname: string): ParsedAppRoute {
+  const clean = pathname.replace(/\/+$/, '') || '/';
+  const parts = clean.split('/').filter(Boolean);
+  if (parts.length === 0 || parts[0].toLowerCase() === 'kesfet') {
+    return { section: 'kesfet' };
+  }
+  const head = parts[0].toLowerCase();
+  if (head === 'takvim') return { section: 'takvim' };
+  if (head === 'topluluk') return { section: 'topluluk' };
+  if (head === 'premium') return { section: 'premium' };
+  if (head === 'profil') return { section: 'profil' };
+  if (head === 'yonetim') return { section: 'yonetim' };
+  if (head === 'birlikte-izle') {
+    return {
+      section: 'birlikte-izle',
+      roomCode: parts[1] ? decodeURIComponent(parts[1]) : undefined,
+    };
+  }
+  if (head === 'izle') {
+    const animeKey = parts[1] ? decodeURIComponent(parts[1]) : undefined;
+    const ep = parts[2] ? Math.max(1, parseInt(parts[2], 10) || 1) : 1;
+    return { section: 'izle', animeKey, episodeNum: ep };
+  }
+  return { section: 'kesfet' };
+}
+
 export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [clientId] = useState<string>(() => getOrCreateClientId());
+  const initialRoute = useMemo(
+    () =>
+      typeof window !== 'undefined'
+        ? parseRouteFromPathname(window.location.pathname)
+        : ({ section: 'kesfet' } as ParsedAppRoute),
+    []
+  );
+  const pendingRouteAnimeRef = useRef<string | null>(initialRoute.animeKey ?? null);
+
   const [authReady, setAuthReady] = useState(false);
   const [fbUid, setFbUid] = useState<string | null>(null);
   const [fbEmail, setFbEmail] = useState<string | null>(null);
@@ -264,9 +306,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
 
   const [animes, setAnimes] = useState<Anime[]>(ANIME_CATALOG);
-  const [activeSection, setActiveSection] = useState<NavSection>('kesfet');
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [activeSection, setActiveSectionState] = useState<NavSection>(initialRoute.section);
   const [selectedAnimeId, setSelectedAnimeId] = useState<string>('');
-  const [selectedEpisodeNum, setSelectedEpisodeNum] = useState<number>(1);
+  const [selectedEpisodeNum, setSelectedEpisodeNum] = useState<number>(initialRoute.episodeNum ?? 1);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'login' });
 
@@ -294,7 +337,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [tickerVisible, setTickerVisible] = useState(true);
   const [liveViewerCount, setLiveViewerCount] = useState(1);
   const [rooms, setRooms] = useState<WatchPartyRoom[]>(INITIAL_ROOMS);
-  const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
+  const [activeRoomCode, setActiveRoomCodeState] = useState<string | null>(
+    initialRoute.roomCode ?? null
+  );
   const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
   const [firestorePlans, setFirestorePlans] = useState<PremiumPlan[]>([]);
   const [rawGiveaway, setRawGiveaway] = useState<PremiumGiveaway | null>(null);
@@ -382,6 +427,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         (snap) => {
           const list = snap.docs.map((d) => d.data() as Anime);
           setAnimes(list);
+          setCatalogLoaded(true);
         },
         (err) => handleFirestoreError(err, OperationType.LIST, 'animes')
       )
@@ -779,8 +825,22 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, [authReady, fbUid, fbEmail, fbEmailVerified]);
 
-  // Keep selectedAnimeId valid
+  // Keep selectedAnimeId valid and resolve deep-linked /izle/:slug/:ep routes
   useEffect(() => {
+    if (pendingRouteAnimeRef.current) {
+      const key = pendingRouteAnimeRef.current;
+      const matched = animes.find((a) => a.slug === key || a.id === key);
+      if (matched) {
+        pendingRouteAnimeRef.current = null;
+        if (selectedAnimeId !== matched.id) {
+          setSelectedAnimeId(matched.id);
+        }
+        return;
+      }
+      if (!catalogLoaded) return;
+      pendingRouteAnimeRef.current = null;
+    }
+
     if (animes.length === 0) {
       if (selectedAnimeId) setSelectedAnimeId('');
       return;
@@ -788,7 +848,57 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!selectedAnimeId || !animes.some((a) => a.id === selectedAnimeId)) {
       setSelectedAnimeId(animes[0].id);
     }
-  }, [animes, selectedAnimeId]);
+  }, [animes, catalogLoaded, selectedAnimeId]);
+
+  // Browser Back/Forward (popstate) support
+  useEffect(() => {
+    const onPopState = () => {
+      const parsed = parseRouteFromPathname(window.location.pathname);
+      setActiveSectionState(parsed.section);
+      if (parsed.section === 'izle') {
+        if (parsed.episodeNum) setSelectedEpisodeNum(parsed.episodeNum);
+        if (parsed.animeKey) {
+          const matched = animes.find(
+            (a) => a.slug === parsed.animeKey || a.id === parsed.animeKey
+          );
+          if (matched) {
+            pendingRouteAnimeRef.current = null;
+            setSelectedAnimeId(matched.id);
+          } else {
+            pendingRouteAnimeRef.current = parsed.animeKey;
+          }
+        }
+      } else if (parsed.section === 'birlikte-izle') {
+        setActiveRoomCodeState(parsed.roomCode ?? null);
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [animes]);
+
+  // Dynamic document title per page
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (activeSection === 'izle') {
+      const target = animes.find((a) => a.id === selectedAnimeId);
+      document.title = target
+        ? `${target.title} ${selectedEpisodeNum}. Bölüm İzle — AnimeXir`
+        : 'Anime İzle — AnimeXir';
+      return;
+    }
+    const titleMap: Record<NavSection, string> = {
+      kesfet: 'AnimeXir — Türkçe Altyazılı ve Dublajlı Anime İzle',
+      izle: 'Anime İzle — AnimeXir',
+      takvim: 'Yayın Takvimi — AnimeXir',
+      'birlikte-izle': 'Birlikte İzle — AnimeXir',
+      topluluk: 'Topluluk — AnimeXir',
+      premium: 'Premium & Çekiliş — AnimeXir',
+      profil: 'Profilim — AnimeXir',
+      yonetim: 'Yönetim Paneli — AnimeXir',
+    };
+    document.title = titleMap[activeSection];
+  }, [activeSection, animes, selectedAnimeId, selectedEpisodeNum]);
 
   // Giveaway countdown & automatic resolution when admin is active
   useEffect(() => {
@@ -832,10 +942,55 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => clearInterval(interval);
   }, [clientId]);
 
+  const syncUrlPath = (path: string, replace = false) => {
+    try {
+      const normalized = path.startsWith('/') ? path : `/${path}`;
+      if (window.location.pathname !== normalized) {
+        if (replace) window.history.replaceState({}, '', normalized);
+        else window.history.pushState({}, '', normalized);
+      }
+    } catch {
+      // ignore sandbox history errors
+    }
+  };
+
+  const setActiveSection = (section: NavSection) => {
+    setActiveSectionState(section);
+    if (section === 'kesfet') {
+      syncUrlPath('/');
+    } else if (section === 'izle') {
+      const target = animes.find((a) => a.id === selectedAnimeId);
+      syncUrlPath(
+        target
+          ? `/izle/${encodeURIComponent(target.slug || target.id)}/${selectedEpisodeNum}`
+          : '/izle'
+      );
+    } else if (section === 'birlikte-izle') {
+      syncUrlPath(
+        activeRoomCode
+          ? `/birlikte-izle/${encodeURIComponent(activeRoomCode)}`
+          : '/birlikte-izle'
+      );
+    } else {
+      syncUrlPath(`/${section}`);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const setActiveRoomCode = (code: string | null) => {
+    setActiveRoomCodeState(code);
+    if (activeSection === 'birlikte-izle') {
+      syncUrlPath(code ? `/birlikte-izle/${encodeURIComponent(code)}` : '/birlikte-izle');
+    }
+  };
+
   const openAnimeWatch = (animeId: string, episodeNum = 1) => {
+    pendingRouteAnimeRef.current = null;
     setSelectedAnimeId(animeId);
     setSelectedEpisodeNum(episodeNum);
-    setActiveSection('izle');
+    setActiveSectionState('izle');
+    const target = animes.find((a) => a.id === animeId);
+    syncUrlPath(`/izle/${encodeURIComponent(target?.slug || animeId)}/${episodeNum}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1569,8 +1724,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     try {
       await setDoc(doc(db, 'rooms', code), roomDoc);
-      setActiveRoomCode(code);
-      setActiveSection('birlikte-izle');
+      setActiveRoomCodeState(code);
+      setActiveSectionState('birlikte-izle');
+      syncUrlPath(`/birlikte-izle/${encodeURIComponent(code)}`);
       showToast(`Oda oluşturuldu (${code})`);
       return roomDoc;
     } catch (err) {
